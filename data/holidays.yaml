@@ -1,0 +1,71 @@
+# =============================================================================
+# 공휴일 테이블 — 근무일 계산용
+# -----------------------------------------------------------------------------
+# ★★ 반드시 확인하고 쓰세요 ★★
+#
+# 일상감사 회부기한이 '근무일 7일'이므로, 이 표가 틀리면 역산 결과가 통째로 틀립니다.
+# 아래 값은 초안이며, 특히 다음 항목은 검증되지 않았습니다:
+#
+#   · 음력 기반 공휴일 (설날, 추석, 부처님오신날)
+#   · 대체공휴일 (요일 겹침에 따라 매년 달라짐)
+#   · 임시공휴일 (연초에 국무회의에서 수시 지정)
+#
+# 권장 갱신 방법
+#   공공데이터포털 '한국천문연구원 특일 정보' API 또는
+#   인사혁신처가 매년 공고하는 관공서 공휴일로 매년 1월에 교체할 것.
+#
+# 형식
+#   date: YYYY-MM-DD
+#   name: 표시 이름
+#   verified: true 면 확정, false 면 앱에서 경고 배지 표시
+# =============================================================================
+
+meta:
+  갱신일: "2026-08-02"
+  출처: "초안 — 소관부서 확인 전"
+  주의: "verified: false 항목이 하나라도 있으면 앱이 일정 결과에 경고를 붙입니다."
+
+holidays:
+  # ---------------- 2026 ----------------
+  - { date: "2026-01-01", name: "신정", verified: true }
+  - { date: "2026-02-16", name: "설날 연휴", verified: false }
+  - { date: "2026-02-17", name: "설날", verified: false }
+  - { date: "2026-02-18", name: "설날 연휴", verified: false }
+  - { date: "2026-03-01", name: "삼일절 (일요일)", verified: true }
+  - { date: "2026-03-02", name: "삼일절 대체공휴일", verified: false }
+  - { date: "2026-05-05", name: "어린이날", verified: true }
+  - { date: "2026-05-24", name: "부처님오신날 (일요일)", verified: false }
+  - { date: "2026-05-25", name: "부처님오신날 대체공휴일", verified: false }
+  - { date: "2026-06-03", name: "제9회 전국동시지방선거", verified: false }
+  - { date: "2026-06-06", name: "현충일 (토요일)", verified: true }
+  - { date: "2026-08-15", name: "광복절 (토요일)", verified: true }
+  - { date: "2026-09-24", name: "추석 연휴", verified: false }
+  - { date: "2026-09-25", name: "추석", verified: false }
+  - { date: "2026-09-26", name: "추석 연휴 (토요일)", verified: false }
+  - { date: "2026-09-28", name: "추석 대체공휴일", verified: false }
+  - { date: "2026-10-03", name: "개천절 (토요일)", verified: true }
+  - { date: "2026-10-05", name: "개천절 대체공휴일", verified: false }
+  - { date: "2026-10-09", name: "한글날", verified: true }
+  - { date: "2026-12-25", name: "성탄절", verified: true }
+
+  # ---------------- 2027 ----------------
+  - { date: "2027-01-01", name: "신정", verified: true }
+  - { date: "2027-02-06", name: "설날 연휴 (토요일)", verified: false }
+  - { date: "2027-02-07", name: "설날 (일요일)", verified: false }
+  - { date: "2027-02-08", name: "설날 연휴", verified: false }
+  - { date: "2027-02-09", name: "설날 대체공휴일", verified: false }
+  - { date: "2027-03-01", name: "삼일절", verified: true }
+  - { date: "2027-05-05", name: "어린이날", verified: true }
+  - { date: "2027-05-13", name: "부처님오신날", verified: false }
+  - { date: "2027-06-06", name: "현충일 (일요일)", verified: true }
+  - { date: "2027-06-07", name: "현충일 대체공휴일", verified: false }
+  - { date: "2027-08-15", name: "광복절 (일요일)", verified: true }
+  - { date: "2027-08-16", name: "광복절 대체공휴일", verified: false }
+  - { date: "2027-09-14", name: "추석 연휴", verified: false }
+  - { date: "2027-09-15", name: "추석", verified: false }
+  - { date: "2027-09-16", name: "추석 연휴", verified: false }
+  - { date: "2027-10-03", name: "개천절 (일요일)", verified: true }
+  - { date: "2027-10-04", name: "개천절 대체공휴일", verified: false }
+  - { date: "2027-10-09", name: "한글날 (토요일)", verified: true }
+  - { date: "2027-10-11", name: "한글날 대체공휴일", verified: false }
+  - { date: "2027-12-25", name: "성탄절 (토요일)", verified: true }

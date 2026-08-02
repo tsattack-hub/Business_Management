@@ -1,0 +1,134 @@
+# =============================================================================
+# 일정 역산 체인 — 구매설치
+# -----------------------------------------------------------------------------
+# 목표 준공일에서 거꾸로 각 단계의 '최늦 착수일'을 계산한다.
+#
+# 필드
+#   id        체인 노드 id
+#   task      06_절차템플릿_구매설치.yaml 의 태스크 id (표시용)
+#   label     화면 표시 이름
+#   days      소요일수. null 이면 lt(리드타임 룰) 또는 input(사용자 입력)에서 가져온다
+#   unit      calendar | business
+#   lt        03_리드타임.yaml 의 LT-* id (근거·status 인용용)
+#   input     사용자 입력 키 (days 대신)
+#   activate_if  조건 (미충족 시 체인에서 제외)
+#   parallel  true 면 주경로와 병렬. 가장 긴 것만 임계경로에 반영
+#   anchor    이 노드와 병렬 그룹이 붙는 기준 노드
+#
+# 순서는 '준공에 가까운 것부터'로 적는다 (역산 순서).
+# =============================================================================
+
+chain:
+  - id: N01
+    task: T-P5-030
+    label: 준공검사 · 정산
+    days: 14
+    unit: calendar
+    lt: LT-준공검사
+
+  - id: N02
+    task: T-P4-050
+    label: 납품 · 설치 기간
+    input: 이행기간일
+    unit: calendar
+    note: 계약서상 이행기간
+
+  - id: N03
+    task: T-P3-010
+    label: 착수 서류 접수
+    days: 4
+    unit: calendar
+
+  - id: N04
+    task: T-P2-040
+    label: 계약체결
+    days: 10
+    unit: calendar
+    lt: LT-계약체결
+
+  - id: N05
+    task: T-P2-030
+    label: 계약이행능력심사
+    days: 7
+    unit: calendar
+    lt: LT-적격심사
+    activate_if: { 조달트랙_자체입찰: true }
+
+  - id: N06
+    task: T-P2-010
+    label: 입찰공고
+    days: 7
+    unit: calendar
+    lt: LT-입찰공고
+    activate_if: { 조달트랙_자체입찰: true }
+
+  - id: N07
+    task: T-P2-005
+    label: 조달청 구매 의뢰
+    input: 조달청소요일
+    unit: calendar
+    lt: LT-조달청위탁
+    activate_if: { 조달트랙_자체입찰: false }
+
+  - id: N08
+    task: T-P1-150
+    label: 계약의뢰
+    days: 3
+    unit: calendar
+
+  - id: N09
+    task: T-P1-140
+    label: 시행계획 수립 · 시행결의
+    days: 15
+    unit: calendar
+    lt: LT-시행계획수립
+
+  - id: N10
+    task: T-P1-110
+    label: 일상감사
+    days: 7
+    unit: business
+    lt: LT-일상감사
+    activate_if: { 일상감사대상: true }
+    critical: true
+
+  # ---- 병렬 그룹: 일상감사 이전에 모두 끝나 있어야 한다 ----
+  - id: N11
+    task: T-P1-090
+    label: 구매규격 사전공개
+    days: 7
+    unit: calendar
+    lt: LT-사전규격공개
+    parallel: true
+    note: 공개 5일 + 의뢰 리드타임 2일
+
+  - id: N12
+    task: T-P1-075
+    label: 행정예고
+    days: 20
+    unit: calendar
+    lt: LT-행정예고
+    parallel: true
+    activate_if: { CCTV설치: true }
+
+  - id: N13
+    task: T-P1-060
+    label: 보안성 검토
+    input: 보안성검토일
+    unit: calendar
+    lt: LT-보안성검토
+    parallel: true
+    activate_if: { 보안성검토대상: true }
+
+  # ---- 설계 ----
+  - id: N14
+    task: T-P1-030
+    label: 구매규격서 작성
+    input: 설계일수
+    unit: calendar
+
+  - id: N15
+    task: T-P1-020
+    label: 계약유형 판정
+    days: 2
+    unit: calendar

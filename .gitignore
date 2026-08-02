@@ -1,0 +1,17 @@
+# 파이썬
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Streamlit
+.streamlit/
+
+# ★ 사업 데이터 — 절대 커밋하지 말 것
+projects/
+생성서류/
+
+# OS
+.DS_Store
+Thumbs.db
