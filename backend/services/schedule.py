@@ -16,7 +16,7 @@ import yaml
 
 from .rules import citation_of, evaluate, load_rules, rule_index
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+from .paths import DATA_DIR
 
 
 # ---------------------------------------------------------------- 공휴일

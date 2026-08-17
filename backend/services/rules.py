@@ -17,7 +17,7 @@ from typing import Any
 
 import yaml
 
-RULES_DIR = Path(__file__).resolve().parent.parent / "rules"
+from .paths import RULES_DIR
 
 # 구매설치 트랙에서 로드할 파일 (공사 템플릿 02는 참조용으로만 로드)
 RULE_FILES = [

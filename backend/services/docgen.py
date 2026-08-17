@@ -19,7 +19,9 @@ import yaml
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-TPL_PATH = Path(__file__).resolve().parent.parent / "docs" / "templates.yaml"
+from .paths import DOCS_DIR
+
+TPL_PATH = DOCS_DIR / "templates.yaml"
 FILL_MARK = "(  작성 필요  )"
 
 FONT = "맑은 고딕"

@@ -5,12 +5,23 @@ __pycache__/
 .venv/
 venv/
 
-# Streamlit
-.streamlit/
+# 프론트엔드
+node_modules/
+frontend/dist/
+
+# 백엔드 로그
+backend.log
+backend_err.log
 
 # ★ 사업 데이터 — 절대 커밋하지 말 것
 projects/
 생성서류/
+
+# 조달청 수집 결과 (내려받은 타 기관 규격서·조항 후보) — 런타임 산출물
+수집결과/
+
+# 기타 실행 로그
+streamlit*.log
 
 # OS
 .DS_Store

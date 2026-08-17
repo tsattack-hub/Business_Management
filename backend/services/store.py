@@ -13,9 +13,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parent.parent
-PROJ_DIR = ROOT / "projects"
-OUT_DIR = ROOT / "생성서류"
+from .paths import OUT_DIR, PROJ_DIR, ROOT  # noqa: F401
 
 
 def slug(name: str) -> str:

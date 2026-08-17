@@ -15,10 +15,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from engine import audit, boq, docgen, guidance, store, verify           # noqa: E402
-from engine.procedure import build_procedure, judge_contract_type        # noqa: E402
-from engine.rules import load_rules, rule_index                          # noqa: E402
-from engine.schedule import backward_schedule, load_calendar             # noqa: E402
+from backend.services import audit, boq, docgen, guidance, specgen, store, verify  # noqa: E402
+from backend.services.procedure import build_procedure, judge_contract_type        # noqa: E402
+from backend.services.rules import load_rules, rule_index                          # noqa: E402
+from backend.services.schedule import backward_schedule, load_calendar             # noqa: E402
 
 PASS, FAIL = 0, 0
 
@@ -263,6 +263,165 @@ check("완료태스크 왕복", back["완료태스크"], {"T-P1-010", "T-P1-020"
 check("날짜 왕복", back["목표준공일"], _dt.date(2026, 12, 20))
 store.delete(pid)
 check("삭제됨", pid not in [x[0] for x in store.list_projects()], True)
+
+# ---------------------------------------------------------------- 규격서
+print("\n[12] 구매규격서 초안")
+groups = {g.id: g for g in specgen.item_groups()}
+check("품목군 4개", len(groups), 4)
+check("CCTV 규격항목 7개", len(groups["CCTV"].spec_fields), 7)
+
+sp = {"사업명": "테스트 CCTV 구매설치", "공항": "김포공항", "부서": "통신부",
+      "담당자": "홍길동", "추정가격": 280_000_000, "이행기간": 90, "설치작업있음": True}
+vals = {"해상도": "400만 화소", "프레임": "30fps", "저장기간": "30일",
+        "압축방식": "H.265", "카메라수량": "고정형 18대", "방진방수": "IP66",
+        "동작온도": "-30 ~ +50℃"}
+d = specgen.build_draft("CCTV", sp, vals)
+check("조항 17개", d.clause_count, 17)
+check("6개 절 구성", [n for n, _, _ in d.sections], [1, 2, 3, 4, 5, 6])
+body = specgen.to_text(d)
+check("사업명 치환", "테스트 CCTV 구매설치" in body, True)
+check("규격 수치 치환 (해상도)", "400만 화소 이상" in body, True)
+check("규격 수치 치환 (수량)", "고정형 18대" in body, True)
+check("미입력 항목은 빈칸 유지", any("연동 대상" in b for _, b in d.blanks), True)
+check("오탐 없음 (표준 규격·모델 등)", len(d.brand_hits), 0)
+
+d2 = specgen.build_draft("CCTV", sp, {})
+check("수치 미입력 시 빈칸 늘어남", len(d2.blanks) > len(d.blanks), True)
+
+nosafety = specgen.build_draft("CCTV", {**sp, "설치작업있음": False}, vals)
+check("설치작업 없으면 안전관리 조항 제외",
+      nosafety.clause_count, d.clause_count - 1)
+
+hits = specgen.scan_text(
+    "가. 카메라는 한화비전 XNO-8080R 또는 동등 이상으로 한다.\n"
+    "나. 스위치는 Cisco 정품 제품으로 한다.\n"
+    "다. 전원은 PoE (IEEE 802.3af) 및 H.265, IP66을 지원한다.")
+terms = {h.term for h in hits}
+check("상표 '한화비전' 탐지", "한화비전" in terms, True)
+check("모델번호 'XNO-8080R' 탐지", "XNO-8080R" in terms, True)
+check("상표 'Cisco' 탐지", "Cisco" in terms, True)
+check("유도표현 '정품 제품' 탐지", "정품 제품" in terms, True)
+check("표준 규격 오탐 없음 (IEEE/H.265/IP66)",
+      any(t.startswith(("IEEE", "H.26", "IP6")) for t in terms), False)
+check("완화문구 인식", any(h.mitigated for h in hits if h.term == "한화비전"), True)
+
+import tempfile as _tf
+_o = Path(_tf.mkdtemp())
+_p = specgen.render(d, sp, _o)
+check("hwpx 생성", _p.exists() and _p.stat().st_size > 5000, True)
+shutil.rmtree(_o, ignore_errors=True)
+
+# ---------------------------------------------------------------- 조달청 API
+print("\n[13] 조달청 API 클라이언트 (모의)")
+from unittest.mock import MagicMock, patch                            # noqa: E402
+
+from backend.services import harvest as H                                       # noqa: E402
+from backend.services.g2b import (G2BClient, G2BError, classify, is_spec_file,  # noqa: E402
+                                  load_conf, parse_record, preferred_org)
+
+gconf = load_conf()
+check("엔드포인트 설정됨", "HrcspSsstndrdInfoService" in gconf["api"]["base"], True)
+check("필드명 미확정 표시", gconf["api"]["status"], "unverified")
+check("요청 간 대기 설정", gconf["api"]["throttle_sec"] > 0, True)
+check("다운로드 상한 설정", gconf["collect"]["max_files_per_run"] > 0, True)
+
+FAKE = {"response": {"header": {"resultCode": "00", "resultMsg": "NORMAL SERVICE."},
+        "body": {"totalCount": 2, "numOfRows": 100, "pageNo": 1, "items": [
+            {"bfSpecRgstNo": "20260100123-00",
+             "prdctClsfcNoNm": "OO공항 영상감시장치 구매설치",
+             "rcptDt": "20260115", "dminsttNm": "한국공항공사",
+             "asignBdgtAmt": "280000000", "prdctSpecNm": "IP 카메라 24대",
+             "specDocFileNm1": "구매규격서.hwpx",
+             "specDocFileUrl1": "https://example.invalid/a.hwpx",
+             "specDocFileNm2": "입찰공고문.pdf",
+             "specDocFileUrl2": "https://example.invalid/b.pdf",
+             "신규필드": "값"},
+            {"bfSpecRgstNo": "20260100124-00", "prdctClsfcNoNm": "OO역사 조명설비 교체",
+             "dminsttNm": "철도공사", "asignBdgtAmt": "90000000"}]}}}
+
+n1 = parse_record(FAKE["response"]["body"]["items"][0], gconf)
+check("등록번호 파싱", n1.등록번호, "20260100123-00")
+check("예산 정수 변환", n1.budget, 280_000_000)
+check("첨부 2개 파싱", len(n1.파일), 2)
+check("품목군 분류 CCTV", classify(n1, gconf), "CCTV")
+check("선호기관 판정", preferred_org(n1, gconf), True)
+check("규격서 파일 판정", is_spec_file("구매규격서.hwpx", gconf), True)
+check("공고문은 제외", is_spec_file("입찰공고문.pdf", gconf), False)
+
+n2 = parse_record(FAKE["response"]["body"]["items"][1], gconf)
+check("무관한 품목은 분류 안 됨", classify(n2, gconf), None)
+
+with patch("requests.Session.get") as g:
+    g.return_value = MagicMock(status_code=200, json=lambda: FAKE)
+    pr = G2BClient("dummy").probe()
+check("probe 총건수", pr["total"], 2)
+check("probe 필드 매핑", pr["매핑결과"]["등록번호"], "bfSpecRgstNo")
+check("probe 미사용 키 보고", "신규필드" in pr["미매핑키"], True)
+
+for code, frag in (("30", "인증키"), ("22", "트래픽")):
+    with patch("requests.Session.get") as g:
+        g.return_value = MagicMock(
+            status_code=200,
+            json=lambda c=code: {"response": {"header": {
+                "resultCode": c, "resultMsg": "ERROR"}}})
+        try:
+            G2BClient("k").probe()
+            check(f"오류 {code} 예외 발생", False, True)
+        except G2BError as e:
+            check(f"오류 {code} 안내 포함", frag in str(e), True)
+
+try:
+    G2BClient("")
+    check("빈 인증키 거부", False, True)
+except G2BError:
+    check("빈 인증키 거부", True, True)
+
+# ---------------------------------------------------------------- 조항 추출
+print("\n[14] 규격서 텍스트 추출 · 조항 분해")
+_t = Path(tempfile.mkdtemp())
+_sp = {"사업명": "OO공항 CCTV 구매설치", "공항": "OO공항", "부서": "통신부",
+       "담당자": "홍", "추정가격": 280_000_000, "이행기간": 90, "설치작업있음": True}
+_d = specgen.build_draft("CCTV", _sp, {
+    "해상도": "200만 화소", "프레임": "30fps", "저장기간": "30일", "압축방식": "H.265",
+    "카메라수량": "24대", "방진방수": "IP66", "동작온도": "-30~50℃"})
+_f = specgen.render(_d, _sp, _t)
+_text, _how = H.extract_text(_f)
+check("hwpx 추출 방법", _how, "hwpx")
+check("hwpx 추출 내용 있음", len(_text) > 1000, True)
+
+_cl = H.split_clauses(_text, "규격서.hwpx", org="한국공항공사", notice="X")
+check("조항 17개 복구", len(_cl), 17)
+_got = {c.title: c.section for c in _cl}
+for _title, _sec in (("적용범위", 1), ("관련 규격 및 기준", 1), ("네트워크 카메라", 2),
+                     ("개인영상정보 보호", 2), ("시험성적서", 3), ("검수", 4),
+                     ("하자담보 책임", 5), ("기술지원 및 교육", 5), ("안전관리", 6)):
+    check(f"   '{_title}' -> {_sec}절", _got.get(_title), _sec)
+check("본문에 항목이 보존됨",
+      "한국산업표준(KS)" in _got and False or
+      "한국산업표준(KS)" in next(c.body for c in _cl if c.title == "관련 규격 및 기준"), True)
+
+_flat = ("제1조 적용범위\n본 규격서는 물품 구매에 적용한다. 세부는 지시에 따른다.\n"
+         "제2조 기술규격\n가. 정격용량 : 100kVA\n나. 백업시간 : 30분 이상\n"
+         "제3조 제출서류\n가. 시험성적서 1부\n나. 취급설명서 1부\n"
+         "제4조 하자보증\n검수완료일로부터 1년간 무상보증한다. 24시간 내 조치한다.")
+_fc = {c.title: c.section for c in H.split_clauses(_flat, "flat.hwp", min_body=20)}
+check("제N조 형식 4개 인식", len(_fc), 4)
+check("   제2조 기술규격 -> 2절", _fc.get("기술규격"), 2)
+check("   제4조 하자보증 -> 5절", _fc.get("하자보증"), 5)
+
+check("미지원 형식은 사유 반환", H.extract_text(_t / "none.zip")[0], "")
+
+_e = _cl[0].as_yaml_entry(1)
+check("YAML 항목 출처가 '수집'", _e["출처"], "수집")
+check("YAML 항목에 수집출처 기록", _e["수집출처"]["기관"], "한국공항공사")
+shutil.rmtree(_t, ignore_errors=True)
+
+# 레거시 .hwp — 업로드 파일이 있으면
+_legacy = Path("/mnt/user-data/uploads/사업집행_및_계획시_관리절차내용-1.hwp")
+if _legacy.exists():
+    _lt, _lh = H.extract_text(_legacy)
+    check("레거시 .hwp 추출", _lh, "hwp")
+    check("레거시 .hwp 내용 있음", len(_lt) > 10000, True)
 
 # ---------------------------------------------------------------- 결과
 print(f"\n{'='*56}\n통과 {PASS}  실패 {FAIL}\n{'='*56}")
