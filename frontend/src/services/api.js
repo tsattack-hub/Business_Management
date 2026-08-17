@@ -36,19 +36,36 @@ export const downloadAllZip = async (project) => {
 export const getSpecItemGroups = () =>
   api.get('/specgen/item-groups').then(r => r.data.groups);
 
-export const buildSpecDraft = (groupId, project, specValues) =>
+export const buildSpecDraft = (groupId, project, specValues, extraClauses) =>
   api
-    .post('/specgen/draft', { group_id: groupId, project, spec_values: specValues || {} })
+    .post('/specgen/draft', {
+      group_id: groupId, project,
+      spec_values: specValues || {}, extra_clauses: extraClauses || [],
+    })
     .then(r => r.data);
 
-export const downloadSpecDocument = async (groupId, project, specValues) => {
+export const downloadSpecDocument = async (groupId, project, specValues, extraClauses) => {
   const res = await api.post(
     '/specgen/document',
-    { group_id: groupId, project, spec_values: specValues || {} },
+    {
+      group_id: groupId, project,
+      spec_values: specValues || {}, extra_clauses: extraClauses || [],
+    },
     { responseType: 'blob' },
   );
   _triggerDownload(res, '구매규격서(초안).hwpx');
 };
+
+// ─── 조달청 사전규격 수집 ────────────────────────────────────────────────────────
+
+export const getHarvestStatus = () =>
+  api.get('/harvest/status').then(r => r.data);
+
+export const searchNotices = (keyword, { days = 90, business = '물품' } = {}) =>
+  api.post('/harvest/search', { keyword, days, business }).then(r => r.data);
+
+export const extractClauses = (notices, { maxFiles = 8 } = {}) =>
+  api.post('/harvest/extract', { notices, max_files: maxFiles }).then(r => r.data);
 
 // ─── 내역서 검증 ────────────────────────────────────────────────────────────────
 

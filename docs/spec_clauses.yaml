@@ -406,6 +406,23 @@ schema_version: "kac.specclause.v1"
     - Vertiv
     - 이화전기
     - 동아전기
+    # 양방향라디오·무전기(TRS/LMR)
+    - 모토로라
+    - Motorola
+    - 켄우드
+    - Kenwood
+    - 아이컴
+    - Icom
+    - 하이테라
+    - Hytera
+    - 버텍스
+    - Vertex
+    - 세풀라
+    - Sepura
+    - 태이트
+    - Tait
+    - 유니덴
+    - Uniden
   패턴:
     - {regex: '[A-Z]{2,}[- ]?[0-9]{3,}[A-Z]?', 설명: "모델번호로 보이는 문자열"}
     - {regex: '(자사|당사|○○社|OO社)\s*제품', 설명: "특정 업체 지칭"}

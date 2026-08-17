@@ -104,9 +104,27 @@ def _to_clause(d: dict) -> Clause:
     )
 
 
+def _harvested_to_clause(d: dict, idx: int) -> Clause:
+    """사용자가 조달청 수집 결과에서 고른 조항을 초안 조항으로 변환.
+
+    출처는 항상 '수집'으로 두어 화면에 경고가 붙게 한다. 다른 기관 규격서에서
+    온 것이라 특정회사·특정기관 조건이 섞여 있을 수 있기 때문이다.
+    """
+    return Clause(
+        id=str(d.get("id") or f"HARV-{idx:04d}"),
+        section=int(d.get("절") or d.get("section") or 6),
+        title=str(d.get("제목") or d.get("title") or "수집 조항"),
+        body=str(d.get("본문") or d.get("body") or ""),
+        source="수집",
+        note=(f"수집: {d.get('기관', '미확인')} · 검토 후 사용 "
+              "(상표·특정기관 조건 확인, AUD-013)"),
+    )
+
+
 # ---------------------------------------------------------------- 조립
 def build_draft(group_id: str, project: dict[str, Any],
-                spec_values: dict[str, str] | None = None) -> SpecDraft:
+                spec_values: dict[str, str] | None = None,
+                extra_clauses: list[dict] | None = None) -> SpecDraft:
     lib = load_library()
     groups = {g.id: g for g in item_groups()}
     group = groups.get(group_id) or groups["GENERAL"]
@@ -121,9 +139,11 @@ def build_draft(group_id: str, project: dict[str, Any],
     common = [_to_clause(c) for c in lib.get("공통조항", [])]
     by_item = {c["id"]: _to_clause(c) for c in lib.get("품목조항", [])}
     picked = [by_item[cid] for cid in group.clause_ids if cid in by_item]
+    # 사용자가 조달청 수집 결과에서 골라 넣은 조항 (출처=수집)
+    extra = [_harvested_to_clause(d, i) for i, d in enumerate(extra_clauses or [], 1)]
 
     clauses: list[Clause] = []
-    for c in common + picked:
+    for c in common + picked + extra:
         if c.condition and not project.get(c.condition):
             continue
         body = subst(c.body, ctx)

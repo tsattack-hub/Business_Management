@@ -16,3 +16,4 @@ DATA_DIR = ROOT / "data"
 
 PROJ_DIR = ROOT / "projects"
 OUT_DIR = ROOT / "생성서류"
+HARVEST_DIR = ROOT / "수집결과"      # 조달청 수집 산출물 (gitignore)

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildSpecDraft, downloadSpecDocument, getSpecItemGroups } from '../services/api';
+import HarvestPanel from './HarvestPanel';
 
 // ─── 스타일 ─────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ export default function SpecGenPanel({ project }) {
   const [groups, setGroups] = useState([]);
   const [groupId, setGroupId] = useState('');
   const [specValues, setSpecValues] = useState({});
+  const [extraClauses, setExtraClauses] = useState([]);   // 조달청에서 골라온 조항
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,6 +87,7 @@ export default function SpecGenPanel({ project }) {
   // 초안 조립에 쓰는 사업 필드만 추려 의존성 키로 만든다 (사이드바 키 입력마다 재조립 방지)
   const projKey = useMemo(() => JSON.stringify(RELEVANT.map(k => project?.[k] ?? null)), [project]);
   const specKey = useMemo(() => JSON.stringify(specValues), [specValues]);
+  const extraKey = useMemo(() => JSON.stringify(extraClauses), [extraClauses]);
 
   // 품목군·규격 수치·사업 정보가 바뀌면 초안을 다시 조립한다 (디바운스)
   useEffect(() => {
@@ -94,7 +97,7 @@ export default function SpecGenPanel({ project }) {
       setLoading(true);
       setError(null);
       try {
-        setDraft(await buildSpecDraft(groupId, project, specValues));
+        setDraft(await buildSpecDraft(groupId, project, specValues, extraClauses));
       } catch (e) {
         setDraft(null);
         setError('초안 생성 실패: ' + (e.response?.data?.detail || e.message));
@@ -104,7 +107,7 @@ export default function SpecGenPanel({ project }) {
     }, 350);
     return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupId, specKey, projKey]);
+  }, [groupId, specKey, projKey, extraKey]);
 
   const setValue = useCallback((key, v) => setSpecValues(prev => ({ ...prev, [key]: v })), []);
 
@@ -112,13 +115,13 @@ export default function SpecGenPanel({ project }) {
     setBusy(true);
     setError(null);
     try {
-      await downloadSpecDocument(groupId, project, specValues);
+      await downloadSpecDocument(groupId, project, specValues, extraClauses);
     } catch (e) {
       setError('규격서 생성 실패: ' + (e.response?.data?.detail || e.message));
     } finally {
       setBusy(false);
     }
-  }, [groupId, project, specValues]);
+  }, [groupId, project, specValues, extraClauses]);
 
   if (!project?.['사업명']) return null;
 
@@ -165,6 +168,15 @@ export default function SpecGenPanel({ project }) {
           <div style={S.subTitle}>이 품목에서 반드시 확인할 것</div>
           {group.mustCheck.map((m, i) => <div key={i} style={S.info}>{m}</div>)}
         </>
+      )}
+
+      {/* 조달청 유사 규격서 검토 → 고른 조항을 초안에 접붙임 */}
+      <HarvestPanel defaultKeyword={project?.['사업명']} onSelect={setExtraClauses} />
+      {extraClauses.length > 0 && (
+        <div style={{ ...S.info, borderLeftColor: 'var(--warning)', color: 'var(--warning)' }}>
+          조달청 수집 조항 {extraClauses.length}개가 초안에 포함됩니다 — 모두 「수집(검토 필요)」로 표시되며
+          상표·특정기관 조건을 반드시 확인하세요.
+        </div>
       )}
 
       {/* 특정회사 규격 경고 */}

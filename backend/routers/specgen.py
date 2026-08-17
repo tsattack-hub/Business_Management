@@ -90,10 +90,11 @@ def build_draft(
     group_id: str = Body(..., embed=True),
     project: dict[str, Any] = Body(..., embed=True),
     spec_values: dict[str, str] = Body(default={}, embed=True),
+    extra_clauses: list[dict] = Body(default=[], embed=True),
 ):
-    """품목군·규격 수치로 초안을 조립해 미리보기 JSON을 반환한다."""
+    """품목군·규격 수치(+선택한 수집 조항)로 초안을 조립해 미리보기 JSON을 반환한다."""
     try:
-        draft = specgen.build_draft(group_id, project, spec_values)
+        draft = specgen.build_draft(group_id, project, spec_values, extra_clauses)
     except Exception as e:  # noqa: BLE001 - 사용자에게 사유 전달
         return JSONResponse(status_code=400, content={"detail": f"초안 생성 실패: {e}"})
     return _draft_dict(draft)
@@ -104,11 +105,12 @@ def render_document(
     group_id: str = Body(..., embed=True),
     project: dict[str, Any] = Body(..., embed=True),
     spec_values: dict[str, str] = Body(default={}, embed=True),
+    extra_clauses: list[dict] = Body(default=[], embed=True),
 ):
     """초안을 .hwpx 파일로 만들어 내려받는다."""
     out_root = store.out_dir(project)
     try:
-        draft = specgen.build_draft(group_id, project, spec_values)
+        draft = specgen.build_draft(group_id, project, spec_values, extra_clauses)
         path = specgen.render(draft, project, out_root)
     except Exception as e:  # noqa: BLE001
         return JSONResponse(status_code=400, content={"detail": f"규격서 생성 실패: {e}"})
