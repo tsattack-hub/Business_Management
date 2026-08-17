@@ -1,55 +1,59 @@
 @echo off
-chcp 65001 > nul
-title 구매설치 사업관리 - 웹 UI
+setlocal
+title Business Management - Web UI
 
 echo ================================================
-echo   구매설치 사업관리 - React Web UI 시작
+echo   Business Management - Web UI
 echo ================================================
 echo.
 
-REM 백엔드 패키지 확인 및 설치
-echo [1/3] FastAPI 백엔드 패키지 확인 중...
+REM ---- 1) backend packages ----
+echo [1/3] Checking backend packages (fastapi)...
 pip show fastapi >nul 2>&1
 if errorlevel 1 (
-    echo     fastapi 설치 중...
-    pip install -r backend\requirements.txt -q
+    echo     Installing backend requirements...
+    pip install -r "%~dp0backend\requirements.txt" -q
 )
 
-REM 프론트엔드 패키지 확인 및 설치
-echo [2/3] React 프론트엔드 패키지 확인 중...
-if not exist "frontend\node_modules" (
-    echo     npm install 실행 중...
-    cd frontend
-    npm install
-    cd ..
+REM ---- 2) frontend packages ----
+echo [2/3] Checking frontend packages (node_modules)...
+if not exist "%~dp0frontend\node_modules" (
+    echo     Running npm install...
+    pushd "%~dp0frontend"
+    call npm install
+    popd
 )
 
-echo [3/3] 서버 시작 중...
+REM ---- 3) start servers ----
+echo [3/3] Starting servers...
 echo.
 
-REM 백엔드 시작 (창 없음, 로그: backend.log)
-powershell -Command "Start-Process python -ArgumentList '-m uvicorn backend.main:app --reload --port 8000' -WorkingDirectory '%~dp0' -WindowStyle Hidden -RedirectStandardOutput '%~dp0backend.log' -RedirectStandardError '%~dp0backend_err.log'"
+REM Free port 8000 if a previous backend process is still holding it,
+REM so a restart always loads the current code.
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000" ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
 
-REM 백엔드가 준비될 때까지 대기 (최대 30초)
-echo   백엔드 준비 대기 중...
+REM Backend runs hidden and inherits G2B_KEY from this window if it was set.
+powershell -Command "Start-Process python -ArgumentList '-m','uvicorn','backend.main:app','--port','8000' -WorkingDirectory '%~dp0' -WindowStyle Hidden -RedirectStandardOutput '%~dp0backend.log' -RedirectStandardError '%~dp0backend_err.log'"
+
+echo   Waiting for backend to be ready...
 set /a COUNT=0
 :WAIT_BACKEND
-timeout /t 1 /nobreak > nul
-curl -s http://localhost:8000/api/health > nul 2>&1
+timeout /t 1 /nobreak >nul
+curl -s http://localhost:8000/api/health >nul 2>&1
 if errorlevel 1 (
     set /a COUNT+=1
     if %COUNT% lss 30 goto WAIT_BACKEND
-    echo   경고: 백엔드 응답 없음. 강제 진행합니다.
+    echo   Warning: backend did not respond in time. Check backend_err.log
 )
 
 echo.
 echo   FastAPI  : http://localhost:8000
 echo   React    : http://localhost:5173
 echo.
-echo   브라우저가 자동으로 열립니다.
-echo   종료하려면 이 창을 닫으세요.
+echo   A browser tab opens automatically. Keep this window open.
+echo   Press Ctrl+C or close this window to stop.
 echo.
 
-REM 프론트엔드 시작
-cd frontend
-npm run start
+REM Frontend in the correct folder (absolute path), foreground.
+cd /d "%~dp0frontend"
+call npm run start

@@ -56,8 +56,15 @@ def _server_filename(resp) -> str | None:
     m = _CD_PLAIN.search(cd)
     if m:
         val = m.group(1).strip()
-        # requests 는 헤더를 latin-1 로 디코딩한다. 한글 파일명은 그 과정에서
-        # 깨지므로 UTF-8 로 되돌린다 (되돌릴 수 없으면 원문 유지).
+        # g2b 는 plain filename= 에도 percent-encoding(UTF-8)을 넣어 보낸다.
+        if "%" in val:
+            try:
+                dec = urllib.parse.unquote(val).strip()
+                if dec:
+                    return dec
+            except Exception:  # noqa: BLE001 - 다음 방식으로
+                pass
+        # 아니면 requests 가 latin-1 로 잘못 디코딩한 UTF-8 을 되돌린다.
         try:
             val = val.encode("latin-1").decode("utf-8")
         except (UnicodeEncodeError, UnicodeDecodeError):
@@ -76,6 +83,15 @@ def _sanitize(name: str) -> str:
     return re.sub(r'[\\/:*?"<>|]', "_", name).strip()
 
 
+def _cap_len(name: str, limit: int) -> str:
+    """길이를 제한하되 확장자는 보존한다 (긴 한글 파일명에서 .hwp 가 잘리지 않도록)."""
+    if len(name) <= limit:
+        return name
+    p = Path(name)
+    suf = p.suffix[:16]
+    return p.stem[: max(1, limit - len(suf))] + suf
+
+
 def download(url: str, name: str, out_dir: Path, conf: dict,
              session: requests.Session | None = None,
              prefix: str = "") -> Downloaded:
@@ -91,7 +107,8 @@ def download(url: str, name: str, out_dir: Path, conf: dict,
         # 서버가 주는 실제 파일명을 우선한다. g2b 다운로드 링크는 URL에
         # 확장자·파일명이 없고 Content-Disposition 헤더에만 들어 있다.
         base = _sanitize(_server_filename(r) or name) or "download"
-        safe = (f"{_sanitize(prefix)}_{base}" if prefix else base)[:150]
+        full = f"{_sanitize(prefix)}_{base}" if prefix else base
+        safe = _cap_len(full, 150)
         dest = out_dir / safe
         total = 0
         with open(dest, "wb") as fh:
